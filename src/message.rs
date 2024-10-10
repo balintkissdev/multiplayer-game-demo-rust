@@ -11,6 +11,8 @@ pub enum Message {
     Ack(PlayerID, Vector3<f32>),
     Leave(PlayerID),
     Replicate(Player),
+    // TODO: Avoid clients self-reporting their exact own position and opt for sending input state
+    // instead
     Position(PlayerID, Vector2<f32>),
 }
 
@@ -18,7 +20,7 @@ const PING: &str = "PING";
 const HANDSHAKE: &str = "HANDSHAKE";
 const ACK: &str = "ACK";
 const LEAVE: &str = "LEAVE";
-const PUSH: &str = "PUSH";
+const REPL: &str = "REPL";
 const POS: &str = "POS";
 
 impl Message {
@@ -68,7 +70,7 @@ impl Message {
                 })?;
                 Ok(Message::Leave(player_id))
             }
-            Some(PUSH) if parts.len() == 3 => {
+            Some(REPL) if parts.len() == 3 => {
                 let player_id = parts[1].parse().map_err(|_| {
                     std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid PlayerID")
                 })?;
@@ -126,7 +128,7 @@ impl Message {
             Message::Handshake => HANDSHAKE,
             Message::Ack(_, _) => ACK,
             Message::Leave(_) => LEAVE,
-            Message::Replicate(_) => PUSH,
+            Message::Replicate(_) => REPL,
             Message::Position(_, _) => POS,
         }
     }

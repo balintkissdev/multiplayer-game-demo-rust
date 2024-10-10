@@ -1,4 +1,4 @@
-use cgmath::{num_traits::ToPrimitive, Vector2, Vector3};
+use cgmath::{Vector2, Vector3};
 use rand::Rng;
 use std::{
     collections::HashMap,
@@ -23,15 +23,15 @@ use crate::{
 pub type ServerSessionResult = Result<(), Box<dyn Error + Send + Sync>>;
 
 pub async fn start_server(port: u16) -> ServerSessionResult {
-    match tokio::time::timeout(globals::CONNECTION_TIMEOUT_DURATION, async {
-        let addr = format!("{}:{}", globals::LOCALHOST, port);
+    match tokio::time::timeout(globals::CONNECTION_TIMEOUT_SEC, async {
+        let addr = format!("0.0.0.0:{port}");
         let server_socket = UdpSocket::bind(&addr).await?;
         let (broadcast_tx, broadcast_rx) = mpsc::unbounded_channel::<BroadcastMessage>();
         let context = Arc::new(ServerContext::new(server_socket, broadcast_tx.clone()));
 
         tokio::spawn(broadcast_handler(context.clone(), broadcast_rx));
         tokio::spawn(listen_handler(context.clone()));
-        println!("Listening on {addr}");
+        println!("Listening on UDP port {port}");
 
         Ok(()) as ServerSessionResult
     })
@@ -40,7 +40,7 @@ pub async fn start_server(port: u16) -> ServerSessionResult {
         Ok(_) => Ok(()),
         Err(e) => Err(format!(
             "Server creation timed out after {} seconds: {e}",
-            globals::CONNECTION_TIMEOUT_DURATION.as_secs()
+            globals::CONNECTION_TIMEOUT_SEC.as_secs()
         )
         .into()),
     }
@@ -107,7 +107,7 @@ async fn broadcast_handler(context: Arc<ServerContext>, mut broadcast_rx: Channe
 }
 
 async fn ping_handler(context: Arc<ServerContext>) {
-    let mut interval = tokio::time::interval(globals::PING_INTERVAL);
+    let mut interval = tokio::time::interval(globals::PING_INTERVAL_MS);
     loop {
         interval.tick().await;
         let _ = context.broadcast_tx.send(BroadcastMessage {
@@ -117,7 +117,41 @@ async fn ping_handler(context: Arc<ServerContext>) {
     }
 }
 
+// Requires fixed processing, because timing has to be synchronized accross all connected clients.
+// A server simulation loop does not need to play "catch-up" like a local game loop does, because
+// there's no point in sending stale packets.
+async fn simulation_handler(context: Arc<ServerContext>) {
+    let desired_frame_duration =
+        std::time::Duration::from_secs_f32(globals::FIXED_UPDATE_TIMESTEP_SEC);
+    let mut interval = tokio::time::interval(desired_frame_duration);
+
+    interval.tick().await; // Skip the first tick
+
+    loop {
+        let current_time = std::time::Instant::now();
+
+        {
+            let mut players = context.players.lock().await;
+            for (client, player) in players.iter_mut() {
+                globals::clamp_player_to_bounds(player);
+
+                let msg = Message::Replicate(*player).serialize();
+                let _ = context.broadcast_tx.send(BroadcastMessage {
+                    msg: msg.into_bytes(),
+                    excluded_client: Some(*client),
+                });
+            }
+        } // Release the lock as soon as possible
+
+        let elapsed_time = current_time.elapsed();
+        if elapsed_time < desired_frame_duration {
+            interval.tick().await;
+        }
+    }
+}
+
 async fn process_client_message(context: Arc<ServerContext>, client: SocketAddr, msg: String) {
+    message::trace(format!("Received: {msg}"));
     match Message::deserialize(&msg) {
         Ok(Message::Handshake) => {
             accept_client(context, client).await.unwrap();
@@ -140,49 +174,39 @@ async fn accept_client(
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut players = context.players.lock().await;
 
-    // Add new player to server
-    let new_player = Player {
-        id: context
-            .player_id_counter
-            .fetch_add(1, Ordering::SeqCst)
-            .to_u64()
-            .unwrap(),
-        pos: cgmath::vec2(0.0, 0.0),
-        velocity: cgmath::vec2(0.0, 0.0),
-        color: generate_color(),
-    };
-    players.insert(client, new_player);
-    let msg = Message::Ack(new_player.id, new_player.color).serialize();
+    let ack_msg: String;
+    if let Some(existing_player) = players.get(&client) {
+        // Getting multiple handshakes from and sending out multiple ACK for the same
+        // client is not a problem, that just means that previous ACK was dropped, so the
+        // client retried the HANDSHAKE. Server just resends ACK with same player info that
+        // was registered with as response to new HANDSHAKE. Making sure not to
+        // accidentally add the same player multiple times, because that would lead to
+        // "Player 3 joined, Player
+        // 4 joined, Player 5 joined" bug for each accepted HANDSHAKE from the same client.
+        ack_msg = Message::Ack(existing_player.id, existing_player.color).serialize();
+    } else {
+        // Add new player to server
+        let new_player = Player::new(
+            context.player_id_counter.fetch_add(1, Ordering::SeqCst),
+            generate_color(),
+        );
+        players.insert(client, new_player);
+        println!("Player {} joined the server", new_player.id);
+
+        // Start sending out PING messages and start the game itself when the first player has connected
+        if players.len() == 1 {
+            tokio::spawn(ping_handler(context.clone()));
+            tokio::spawn(simulation_handler(context.clone()));
+        }
+
+        ack_msg = Message::Ack(new_player.id, new_player.color).serialize();
+    }
+
     context
         .server_socket
-        .send_to(msg.as_bytes(), client)
+        .send_to(ack_msg.as_bytes(), client)
         .await?;
-    message::trace(format!("Sent: {msg}"));
-
-    // Init new player with positions of existing players
-    for (existing_client, _) in players.iter() {
-        if *existing_client != client {
-            let existing_player = players.get(existing_client).unwrap();
-            let msg = Message::Replicate(*existing_player).serialize();
-            context
-                .server_socket
-                .send_to(msg.as_bytes(), client)
-                .await?;
-            message::trace(format!("Sent: {msg}"));
-        }
-    }
-
-    // Start sending out PING messages when the first player has connected
-    if players.len() == 1 {
-        tokio::spawn(ping_handler(context.clone()));
-    }
-
-    // Notify existing players about new player
-    println!("Player {} joined the server", new_player.id);
-    context.broadcast_tx.send(BroadcastMessage {
-        msg: Message::Replicate(new_player).serialize().into_bytes(),
-        excluded_client: Some(client),
-    })?;
+    message::trace(format!("Sent: {ack_msg}"));
 
     Ok(())
 }
@@ -200,19 +224,12 @@ async fn update_position(
 
         player.pos.x = new_pos.x;
         player.pos.y = new_pos.y;
-        globals::clamp_player_to_bounds(player);
-
-        context.broadcast_tx.send(BroadcastMessage {
-            msg: Message::Position(player.id, player.pos)
-                .serialize()
-                .into_bytes(),
-            excluded_client: Some(client),
-        })?;
     }
 
     Ok(())
 }
 
+// FIXME: LEAVE packets from can be dropped
 async fn drop_player(
     context: Arc<ServerContext>,
     client: SocketAddr,

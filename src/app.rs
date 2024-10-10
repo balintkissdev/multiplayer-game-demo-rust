@@ -76,9 +76,6 @@ impl<'a> App<'a> {
     }
 
     fn run(&mut self, event_loop: &mut EventLoop<()>) {
-        const MAX_LOGIC_UPDATE_PER_SECOND: f32 = 60.0;
-        const FIXED_UPDATE_TIMESTEP: f32 = 1.0 / MAX_LOGIC_UPDATE_PER_SECOND;
-
         let mut previous_time = std::time::Instant::now();
         let mut lag: f32 = 0.0;
         loop {
@@ -95,9 +92,9 @@ impl<'a> App<'a> {
                 self.process_server_response();
             }
 
-            while lag >= FIXED_UPDATE_TIMESTEP {
+            while lag >= globals::FIXED_UPDATE_TIMESTEP_SEC {
                 self.update();
-                lag -= FIXED_UPDATE_TIMESTEP;
+                lag -= globals::FIXED_UPDATE_TIMESTEP_SEC;
             }
 
             self.window.as_ref().unwrap().request_redraw();
@@ -116,20 +113,22 @@ impl<'a> App<'a> {
             .client_session
             .as_mut()
             .unwrap()
-            .receive_server_resposne()
+            .receive_server_response()
         {
             message::trace(format!("Received: {}", msg));
             match Message::deserialize(&msg) {
                 Ok(Message::Replicate(new_player)) => {
-                    self.remote_players.insert(new_player.id, new_player);
-                    self.gui
-                        .as_mut()
-                        .unwrap()
-                        .log(format!("Player {} has joined the server", new_player.id));
-                }
-                Ok(Message::Position(id, pos)) => {
-                    if let Some(player) = self.remote_players.get_mut(&id) {
-                        player.pos = pos;
+                    if let Some(player) = self.remote_players.get_mut(&new_player.id) {
+                        // Update existing player based on server's simulation
+                        player.pos = new_player.pos;
+                    } else {
+                        // On-demand remote player creation because replication does not
+                        // fit into the handshake ACK message.
+                        self.remote_players.insert(new_player.id, new_player);
+                        self.gui
+                            .as_mut()
+                            .unwrap()
+                            .log(format!("Player {} has joined the server", new_player.id));
                     }
                 }
                 Ok(Message::Leave(id)) => {
@@ -188,7 +187,7 @@ impl<'a> App<'a> {
                             }
                         }
                     }
-                    Some(_) => (), // Task is still running
+                    Some(_) => (), // Task is still running, nothing to do
                     None => {
                         // Fire task if not exists
                         let server_address = server_address.clone();

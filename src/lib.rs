@@ -53,11 +53,14 @@ pub mod globals {
 
     pub const LOCALHOST: &str = "127.0.0.1";
     pub const DEFAULT_PORT: u16 = 8080;
-    pub const PING_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
-    pub const CONNECTION_TIMEOUT_DURATION: std::time::Duration = std::time::Duration::from_secs(5);
+    pub const PING_INTERVAL_MS: std::time::Duration = std::time::Duration::from_millis(20);
+    pub const CONNECTION_TIMEOUT_SEC: std::time::Duration = std::time::Duration::from_secs(5);
 
     pub const WINDOW_SIZE: (u16, u16) = (800, 600);
     pub const WINDOW_TITLE: &str = "Multiplayer game demo by Bálint Kiss";
+
+    pub const MAX_LOGIC_UPDATE_PER_SEC: f32 = 60.0;
+    pub const FIXED_UPDATE_TIMESTEP_SEC: f32 = 1.0 / MAX_LOGIC_UPDATE_PER_SEC;
 
     pub const PLAYER_QUAD_SIZE: f32 = 24.0;
     pub const WORLD_BOUNDS: WorldBounds = WorldBounds {
