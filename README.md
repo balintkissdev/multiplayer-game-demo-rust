@@ -40,7 +40,7 @@ utilizes the concept of *green-threading* (concept similar to goroutines in the
 Go programming language) and the asynchronous I/O capabilities of the operating
 system (`epoll` on Linux, `IOCP` on Windows and `kqueue` on macOS).
 
-Game programming provides a challenging environment to put these concepts to
+Game programming provides a challenging environment to put these concepts into
 practice due to them being classified as *soft real-time systems*, requiring
 response within a time of generating a frame in 16.666 milliseconds (60
 frames/second). Although TCP network protocol is used in conventional software
