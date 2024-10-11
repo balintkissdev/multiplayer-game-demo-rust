@@ -1,6 +1,6 @@
 [package]
 name = "multiplayer-game-demo-rust"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Bálint Kiss"]
 edition = "2021"
 description = "Networked multiplayer proof-of-concept game demo utilizing client-server architecture."

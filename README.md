@@ -18,8 +18,8 @@
 
 ## Try it out!
 
-- [Windows 64-bit download](https://github.com/balintkissdev/multiplayer-game-demo-rust/releases/download/0.1.0/multiplayer-game-demo-rust-0.1.0-win64.zip)
-- [Linux 64-bit download](https://github.com/balintkissdev/multiplayer-game-demo-rust/releases/download/0.1.0/multiplayer-game-demo-rust-0.1.0-linux-x86_64.tar.gz)
+- [Windows 64-bit download](https://github.com/balintkissdev/multiplayer-game-demo-rust/releases/download/0.1.1/multiplayer-game-demo-rust-0.1.1-win64.zip)
+- [Linux 64-bit download](https://github.com/balintkissdev/multiplayer-game-demo-rust/releases/download/0.1.1/multiplayer-game-demo-rust-0.1.1-linux-x86_64.tar.gz)
 
 ## Motivation
 
