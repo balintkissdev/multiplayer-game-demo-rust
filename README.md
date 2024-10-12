@@ -31,7 +31,7 @@ well as the use of Tokio async runtime.
 
 This application was tested under `tc-netem` network emulator simulating
 harsh network environment and packet loss, as well as live being deployed on a
-remote [Amazon EC2](https://aws.amazon.com/ec2/) virtual machine instance.
+remote Amazon EC2 virtual machine instance.
 
 Using conventional threads for concurrency and parallelism can be expensive due
 to the cost of requesting threads from the operating system and additional heap
