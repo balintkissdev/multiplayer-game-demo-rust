@@ -1,8 +1,11 @@
-# Networked client-server multiplayer game demo written in Rust
+# Networked client-server multiplayer architecture demo written in Rust
 
 [![Build](https://github.com/balintkissdev/multiplayer-game-demo-rust/actions/workflows/ci.yml/badge.svg)](https://github.com/balintkissdev/multiplayer-game-demo-rust/actions/workflows/ci.yml)
 
-> A proof-of-concept networked multiplayer game demonstrating UDP socket programming and asynchronous runtime usage in Rust.
+> A technical demonstration showcasing UDP socket programming, Tokio
+> asynchronous runtime usage, and client-server game architecture in Rust.
+> Features real-time synchronization of 2D movement between local and remote
+> players.
 
 ![Menu](doc/img/menu.png)
 ![Demo](doc/img/demo.png)
@@ -59,12 +62,12 @@ custom-tailored reliability protocols on top of it.
 - Client-server architecture for multiplayer networking. UDP socket
   communication for low-latency networking.
   - Health-check mechanism to detect lost network connections.
-  - Reliability patterns to mitigate harsh network environments like UDP packet losses.
+  - Mitigation of UDP packet losses in harsh network environments.
 - Real-time multiplayer gameplay with smooth synchronization.
 - Graphical client application with GUI menu
 - Hardware-accelerated OpenGL rendering for 2D top-down perspective graphics.
 - Flexible server hosting options:
-  - Clients can host hybrid server sessions from GUI.
+  - Peer-hosted server: clients can host their own server sessions from GUI.
   - Headless/dedicated server-only mode running without GUI.
 
 ## Requirements
@@ -104,8 +107,10 @@ The application can also be deployed as a Docker container, which will run in se
 docker build -t multiplayer-game-demo-rust .
 ```
 
-2. Launch the Docker container. This starts with `--server-only` and `--trace` options by
-default. See [Command line options](#command-line-options) for more info.
+2. Launch the Docker container. This starts with `--server-only` and `--trace`
+   options by default. Make sure to allow the container's port (`8080` by
+   default) to the host. See [Command line options](#command-line-options) for
+   more info.
 
 ```sh
 docker run -d -p 8080:8080 multiplayer-game-demo-rust
@@ -130,7 +135,12 @@ switch.
 ### Command line options
 
 - `--server-only`: Starts a server only in headless mode without graphical user interface. Used for creating dedicated servers.
-- `-p, --port=<PORT>`: Port number used for server in headless mode (--server-only). (default: `8080`)
+- `-p, --port=<PORT>`: Port number used for server in headless mode (`--server-only`). (default: `8080`)
 - `--trace`: Enable tracing of UDP messages on console log.
 - `-h, --help`: Print help.
+
+## Resources
+
+- Roberto Vitillo. (2021). *Understanding Distributed Systems: What every developer should know about large distributed applications*.
+- Josh Glazer and Sanjay Madhav. (2015). *Multiplayer Game Programming: Architecting Networked Games*. Addison-Wesley.
 
