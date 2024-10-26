@@ -7,6 +7,18 @@
 > Features real-time synchronization of 2D movement between local and remote
 > players.
 
+<p align="center">
+  <a href="https://www.rust-lang.org/">
+    <img src="doc/img/rust-logo-128x128.png" height="60"/>
+  </a>
+  <a href="https://tokio.rs/">
+    <img src="doc/img/tokio.svg" height="60"/>
+  </a>
+  <a href="https://www.docker.com/">
+    <img src="doc/img/docker-logo-blue.svg" height="60"/>
+  </a>
+</p>
+
 ![Menu](doc/img/menu.png)
 ![Demo](doc/img/demo.png)
 
@@ -26,11 +38,11 @@
 
 ## Motivation
 
-This project is a demonstration to highlight my system-level network
+The goal of this project is to highlight my system-level network
 programming skills with Rust programming language by creating a robust and
 efficient application using real-time multiplayer game techniques. The project
 showcases confident understanding of networking and concurrency concepts as
-well as the use of Tokio async runtime.
+well as async Rust programming with the use of Tokio runtime.
 
 This application was tested under `tc-netem` network emulator simulating
 harsh network environment and packet loss, as well as live being deployed on a
@@ -141,6 +153,6 @@ switch.
 
 ## Resources
 
-- Roberto Vitillo. (2021). *Understanding Distributed Systems: What every developer should know about large distributed applications*.
-- Josh Glazer and Sanjay Madhav. (2015). *Multiplayer Game Programming: Architecting Networked Games*. Addison-Wesley.
+- [Roberto Vitillo. (2021). *Understanding Distributed Systems: What every developer should know about large distributed applications*.](https://www.amazon.com/Understanding-Distributed-Systems-Second-applications-dp-1838430210/dp/1838430210)
+- [Josh Glazer and Sanjay Madhav. (2015). *Multiplayer Game Programming: Architecting Networked Games*. Addison-Wesley.](https://www.amazon.com/Multiplayer-Game-Programming-Architecting-Networked-ebook/dp/B0189RXWJQ)
 
