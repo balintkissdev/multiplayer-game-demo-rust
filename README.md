@@ -7,18 +7,6 @@
 > Features real-time synchronization of 2D movement between local and remote
 > players.
 
-<p align="center">
-  <a href="https://www.rust-lang.org/">
-    <img src="doc/img/rust-logo-128x128.png" height="60"/>
-  </a>
-  <a href="https://tokio.rs/">
-    <img src="doc/img/tokio.svg" height="60"/>
-  </a>
-  <a href="https://www.docker.com/">
-    <img src="doc/img/docker-logo-blue.svg" height="60"/>
-  </a>
-</p>
-
 ![Menu](doc/img/menu.png)
 ![Demo](doc/img/demo.png)
 
