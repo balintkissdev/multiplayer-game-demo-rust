@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     error::Error,
     time::Duration,
 };
@@ -39,6 +39,37 @@ enum InputEvent {
     MoveRight,
 }
 
+// Using array instead of HashSet results in a single jump table which is more friendlier to cache,
+// avoids heap allocation and hash function calls for HashSet, has better branch prediction and has
+// fewer CPU instructions.
+//
+// (Even though gains are negligable, because bottleneck is usually not the input handling)
+type InputState = [bool; 4];
+
+impl std::ops::Index<InputEvent> for InputState {
+    type Output = bool;
+
+    fn index(&self, e: InputEvent) -> &Self::Output {
+        match e {
+            InputEvent::MoveUp => &self[0],
+            InputEvent::MoveDown => &self[1],
+            InputEvent::MoveLeft => &self[2],
+            InputEvent::MoveRight => &self[3],
+        }
+    }
+}
+
+impl std::ops::IndexMut<InputEvent> for InputState {
+    fn index_mut(&mut self, e: InputEvent) -> &mut Self::Output {
+        match e {
+            InputEvent::MoveUp => &mut self[0],
+            InputEvent::MoveDown => &mut self[1],
+            InputEvent::MoveLeft => &mut self[2],
+            InputEvent::MoveRight => &mut self[3],
+        }
+    }
+}
+
 type ConnectionTaskHandle = JoinHandle<ClientSessionResult>;
 type RemotePlayers = HashMap<PlayerID, Player>; // Access by ID because of position updates
 
@@ -49,7 +80,7 @@ struct App<'a> {
     gui: Option<Gui>,
     client_session: Option<ClientSession>,
     connection_task: Option<ConnectionTaskHandle>,
-    input_state: HashSet<InputEvent>,
+    input_state: InputState,
     local_player: Player,
     camera_pos: Vector2<f32>,
     remote_players: RemotePlayers,
@@ -67,7 +98,7 @@ impl<'a> App<'a> {
             gui: None,
             client_session: None,
             connection_task: None,
-            input_state: HashSet::with_capacity(4),
+            input_state: InputState::default(),
             local_player: Player::default(),
             camera_pos: Vector2::new(0.0, 0.0),
             remote_players: HashMap::new(),
@@ -208,16 +239,16 @@ impl<'a> App<'a> {
                 let base_speed = 10.0;
                 let mut direction = cgmath::vec2(0.0, 0.0);
 
-                if self.input_state.contains(&InputEvent::MoveUp) {
+                if self.input_state[InputEvent::MoveUp] {
                     direction.y -= 1.0;
                 }
-                if self.input_state.contains(&InputEvent::MoveDown) {
+                if self.input_state[InputEvent::MoveDown] {
                     direction.y += 1.0;
                 }
-                if self.input_state.contains(&InputEvent::MoveLeft) {
+                if self.input_state[InputEvent::MoveLeft] {
                     direction.x -= 1.0;
                 }
-                if self.input_state.contains(&InputEvent::MoveRight) {
+                if self.input_state[InputEvent::MoveRight] {
                     direction.x += 1.0;
                 }
 
@@ -246,7 +277,7 @@ impl<'a> App<'a> {
                         .as_mut()
                         .unwrap()
                         .set_title(globals::WINDOW_TITLE);
-                    self.input_state.clear(); // Avoid keys being stuck
+                    self.input_state = InputState::default(); // Avoid keys being stuck
                     self.remote_players.clear();
                     self.state_machine.change(fsm::State::Disconnected);
                 }
@@ -312,25 +343,18 @@ impl ApplicationHandler for App<'_> {
 
                 if matches!(self.state_machine.peek(), Some(fsm::State::Playing)) {
                     let input_event = match physical_key {
-                        KeyCode::ArrowUp | KeyCode::KeyW => Some(InputEvent::MoveUp),
-                        KeyCode::ArrowDown | KeyCode::KeyS => Some(InputEvent::MoveDown),
-                        KeyCode::ArrowLeft | KeyCode::KeyA => Some(InputEvent::MoveLeft),
-                        KeyCode::ArrowRight | KeyCode::KeyD => Some(InputEvent::MoveRight),
-                        _ => None,
+                        KeyCode::ArrowUp | KeyCode::KeyW => InputEvent::MoveUp,
+                        KeyCode::ArrowDown | KeyCode::KeyS => InputEvent::MoveDown,
+                        KeyCode::ArrowLeft | KeyCode::KeyA => InputEvent::MoveLeft,
+                        KeyCode::ArrowRight | KeyCode::KeyD => InputEvent::MoveRight,
+                        _ => return,
                     };
-                    if input_event.is_some() {
-                        match state {
-                            ElementState::Pressed => self.input_state.insert(input_event.unwrap()),
-                            ElementState::Released => {
-                                self.input_state.remove(&input_event.unwrap())
-                            }
-                        };
-                    }
+                    self.input_state[input_event] = state == ElementState::Pressed;
                 }
             }
             WindowEvent::Focused(false) => {
                 // Avoid stuck keys when window loses focus
-                self.input_state.clear();
+                self.input_state = InputState::default();
             }
             WindowEvent::RedrawRequested => {
                 let renderer = self.renderer.as_ref().unwrap();
