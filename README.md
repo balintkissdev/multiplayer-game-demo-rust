@@ -139,8 +139,10 @@ switch.
 - `--trace`: Enable tracing of UDP messages on console log.
 - `-h, --help`: Print help.
 
-## Resources
+## Acknowledgements
 
-- [Roberto Vitillo. (2021). *Understanding Distributed Systems: What every developer should know about large distributed applications*.](https://www.amazon.com/Understanding-Distributed-Systems-Second-applications-dp-1838430210/dp/1838430210)
-- [Josh Glazer and Sanjay Madhav. (2015). *Multiplayer Game Programming: Architecting Networked Games*. Addison-Wesley.](https://www.amazon.com/Multiplayer-Game-Programming-Architecting-Networked-ebook/dp/B0189RXWJQ)
+- [Roberto Vitillo. (2021). *Understanding Distributed Systems: What every developer should know about large distributed applications*.](https://www.amazon.com/Understanding-Distributed-Systems-Second-applications-dp-1838430210/dp/1838430210) - Practical guide on distributed systems design for large-scale applications.
+- [Josh Glazer and Sanjay Madhav. (2015). *Multiplayer Game Programming: Architecting Networked Games*. Addison-Wesley.](https://www.amazon.com/Multiplayer-Game-Programming-Architecting-Networked-ebook/dp/B0189RXWJQ) - Comprehensive resource on networked game architecture including concepts, historical analysis and implementation patterns.
+- [*Gaffer On Games - What Every Programmer Needs To Know About Game Networking*](https://www.gafferongames.com/post/what_every_programmer_needs_to_know_about_game_networking/) - Essential read on foundational networking concepts in game development.
+- [*Fabien Sanglard - Quake Source Code Review*](https://fabiensanglard.net/quakeSource/index.php) - Detailed exploration of the Quake source code, invaluable for understanding client-server network stack of the game.
 
