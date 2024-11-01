@@ -18,6 +18,7 @@
 - [Requirements](#requirements)
 - [Build instructions](#build-instructions)
 - [Usage](#usage)
+- [Acknowledgements](#acknowledgements)
 
 ## Try it out!
 
