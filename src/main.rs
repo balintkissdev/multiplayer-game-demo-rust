@@ -36,13 +36,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         message::set_trace(true);
     }
 
-    // Application window events, rendering and GUI are in syncronous environment and async code
-    // cannot be called from there. Manage Tokio runtime separately to bridge sync
-    // code with async code easily.
+    // Application window events, rendering, and GUI are in syncronous context where async code
+    // cannot be called directly. Managing Tokio runtime separately instead of relying on
+    // "#[tokio::main]" in order to bridge sync code with async code easily .
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
 
+    // Start a headless server only if option is set.
     if cli.server_only {
         println!("Starting server in headless mode");
         rt.block_on(async {
@@ -62,8 +63,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
         });
-        Ok(())
-    } else {
-        app::run_app(&rt)
+        return Ok(());
     }
+
+    // Run graphical client otherwise.
+    app::run_app(&rt)
 }

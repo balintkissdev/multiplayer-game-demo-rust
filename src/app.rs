@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    error::Error,
-    time::Duration,
-};
+use std::{collections::HashMap, error::Error, time::Duration};
 
 use cgmath::{InnerSpace, Vector2};
 use tokio::task::JoinHandle;
@@ -80,6 +76,9 @@ struct App<'a> {
     gui: Option<Gui>,
     client_session: Option<ClientSession>,
     connection_task: Option<ConnectionTaskHandle>,
+    // Pushing pressed keys from event loop into this collection and processing in update() makes
+    // movement continous. Naively checking for key press during event consumption leads to choppy
+    // movement.
     input_state: InputState,
     local_player: Player,
     camera_pos: Vector2<f32>,
@@ -107,7 +106,15 @@ impl<'a> App<'a> {
     }
 
     fn run(&mut self, event_loop: &mut EventLoop<()>) {
+        // Frame-rate independent loop with fixed update, variable framerate.
+        //
+        // A naive calculation and passing of a deltaTime introduces floating point
+        // precision errors, leading to choppy camera movement and unstable logic
+        // even on high framerate. Here, think of it as renderer dictating time, and
+        // logic update adapting to it.
         let mut previous_time = std::time::Instant::now();
+        // How much application "clock" is behind real time. Also known as
+        // "accumulator"
         let mut lag: f32 = 0.0;
         loop {
             let current_time = std::time::Instant::now();
@@ -239,6 +246,7 @@ impl<'a> App<'a> {
                 let base_speed = 10.0;
                 let mut direction = cgmath::vec2(0.0, 0.0);
 
+                // Apply input
                 if self.input_state[InputEvent::MoveUp] {
                     direction.y -= 1.0;
                 }
@@ -257,12 +265,15 @@ impl<'a> App<'a> {
                     direction = direction.normalize();
                 }
 
+                // Move player
                 self.local_player.velocity = direction * base_speed;
                 self.local_player.pos += self.local_player.velocity;
                 globals::clamp_player_to_bounds(&mut self.local_player);
 
+                // Move camera
                 self.move_camera();
 
+                // Message server
                 if self.local_player.velocity != cgmath::vec2(0.0, 0.0) {
                     self.client_session
                         .as_ref()
@@ -270,6 +281,7 @@ impl<'a> App<'a> {
                         .send_pos(&self.local_player);
                 }
 
+                // Server healthcheck
                 if !self.client_session.as_ref().unwrap().is_server_alive() {
                     eprintln!("Connection to server was lost");
                     self.client_session = None;
@@ -303,6 +315,9 @@ impl<'a> App<'a> {
 }
 
 impl ApplicationHandler for App<'_> {
+    // It is recommended for winit applications to create window and initialize their graphics context
+    // after the first WindowEvent::Resumed even is received. There are systems that won't allow
+    // applications to create a renderer until that.
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let (window, renderer, gui) = Renderer::create_graphics(&event_loop);
 
@@ -372,6 +387,7 @@ impl ApplicationHandler for App<'_> {
             _ => (),
         }
 
+        // Forward rest of events to GUI
         gui.handle_events(&window, &event);
     }
 }

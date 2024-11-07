@@ -59,10 +59,21 @@ pub mod globals {
     pub const WINDOW_SIZE: (u16, u16) = (800, 600);
     pub const WINDOW_TITLE: &str = "Multiplayer game demo by Bálint Kiss";
 
+    /// This is the granularity of how often to update logic and not to be confused
+    /// with framerate limiting or 60 frames per second, because the main loop
+    /// implementation uses a fixed update, variable framerate timestep algorithm.
+    ///
+    /// 60 logic updates per second is a common value used in games.
+    /// - Higher update rate (120) can lead to smoother gameplay, more precise
+    /// control, at the cost of CPU load. Keep mobile devices in mind.
+    /// - Lower update rate (30) reduces CPU load, runs game logic less frequently,
+    /// but can make game less responsive.
     pub const MAX_LOGIC_UPDATE_PER_SEC: f32 = 60.0;
     pub const FIXED_UPDATE_TIMESTEP_SEC: f32 = 1.0 / MAX_LOGIC_UPDATE_PER_SEC;
 
     pub const PLAYER_QUAD_SIZE: f32 = 24.0;
+
+    /// World bounds are relative to origin (0,0)
     pub const WORLD_BOUNDS: WorldBounds = WorldBounds {
         min_x: -1200.0,
         min_y: -1200.0,

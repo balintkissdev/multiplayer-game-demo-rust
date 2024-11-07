@@ -62,6 +62,11 @@ const QUAD_FRAGMENT_SHADER_SRC: &str = r#"
     }
 "#;
 
+/// Client-side graphics rendering layer for player sprite (quad) and playfield display. Uses
+/// OpenGL 2.1 for backwards compatibility.
+///
+/// Because "legacy" OpenGL 2.1 does not support Vertex Attribute Arrays, "shader plumbing" is done
+/// directly before draw calls.
 pub struct Renderer {
     // There's no VAO for OpenGL 2.1
     grid_shader_program: glow::Program,
@@ -77,8 +82,10 @@ pub struct Renderer {
 }
 
 impl Renderer {
+    /// Create native window and initialize OpenGL context.
     pub fn create_graphics(event_loop: &ActiveEventLoop) -> (Window, Renderer, Gui) {
         unsafe {
+            // Create window
             let window_attributes = WindowAttributes::default()
                 .with_title(globals::WINDOW_TITLE)
                 .with_inner_size(PhysicalSize::new(
@@ -123,10 +130,13 @@ impl Renderer {
                 .unwrap();
             let gl_context = not_current_gl_context.make_current(&gl_surface).unwrap();
 
+            // Create context
             let gl = glow::Context::from_loader_function_cstr(|s| gl_display.get_proc_address(s));
 
+            // Set background color to white
             gl.clear_color(1.0, 1.0, 1.0, 1.0);
 
+            // Load quad shaders
             let quad_vertex_shader = gl.create_shader(glow::VERTEX_SHADER).unwrap();
             gl.shader_source(quad_vertex_shader, QUAD_VERTEX_SHADER_SRC);
             gl.compile_shader(quad_vertex_shader);
@@ -141,12 +151,14 @@ impl Renderer {
             gl.link_program(quad_shader_program);
             gl.use_program(Some(quad_shader_program));
 
+            // (Shader programs are already created, individual shaders can be removed from memory)
             gl.delete_shader(quad_vertex_shader);
             gl.delete_shader(quad_fragment_shader);
 
             let quad_vbo = gl.create_buffer().unwrap();
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(quad_vbo));
 
+            // Create quad buffers
             let quad_vertices: [f32; 12] =
                 [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0];
 
@@ -163,8 +175,9 @@ impl Renderer {
                 .get_uniform_location(quad_shader_program, "uColor")
                 .unwrap();
 
-            gl.use_program(None);
+            gl.use_program(None); // Unbind shader needed to associate uniforms with
 
+            // Load grid shaders
             let grid_vertex_shader = gl.create_shader(glow::VERTEX_SHADER).unwrap();
             gl.shader_source(grid_vertex_shader, GRID_VERTEX_SHADER_SRC);
             gl.compile_shader(grid_vertex_shader);
@@ -182,6 +195,7 @@ impl Renderer {
             gl.delete_shader(grid_vertex_shader);
             gl.delete_shader(grid_fragment_shader);
 
+            // Create grid buffers
             let grid_vertices: Vec<f32> = create_grid_vertices(
                 GRID_COL_COUNT,
                 GRID_ROW_COUNT,
@@ -217,6 +231,7 @@ impl Renderer {
                 quad_color_location,
             };
 
+            // Create GUI
             let gui = Gui::new(&event_loop, gl.clone());
 
             (window, renderer, gui)
@@ -236,6 +251,8 @@ impl Renderer {
         unsafe {
             self.gl.clear(glow::COLOR_BUFFER_BIT);
 
+            // Camera calculations
+            // Camera moves the world itself around!
             let projection: Matrix4<f32> = cgmath::ortho(
                 0.0,
                 globals::WINDOW_SIZE.0 as f32,
@@ -257,6 +274,7 @@ impl Renderer {
 
             self.draw_grid(&pv);
 
+            // Keep drawing players even when Quit dialog is active
             if matches!(
                 state,
                 Some(fsm::State::Playing) | Some(fsm::State::QuitDialog)
@@ -290,6 +308,7 @@ impl Renderer {
                 0,
             );
 
+            // Grid start location is the upper-left corner of world
             let translation = Matrix4::from_translation(cgmath::vec3(
                 globals::WORLD_BOUNDS.min_x,
                 globals::WORLD_BOUNDS.min_y,
@@ -344,7 +363,7 @@ impl Renderer {
     fn draw_quad(&self, pos: &Vector2<f32>, color: &Vector3<f32>, pv: &Matrix4<f32>) {
         // Move to position
         let mut model = Matrix4::from_translation(cgmath::vec3(pos.x, pos.y, 0.0));
-        // Move origin from bottom-right corner to center
+        // Move local coordinate space origin from bottom-right corner of quad to center
         model = model
             * Matrix4::from_translation(cgmath::vec3(
                 -0.5 * globals::PLAYER_QUAD_SIZE,

@@ -12,6 +12,9 @@ use crate::{
     Player, PlayerID,
 };
 
+// Non-blocking channels are used for lock-free message passing from sync main thread to async
+// context and between multiple async tasks.
+// TODO: Research how to handle backpressure
 type ChannelSender = mpsc::UnboundedSender<String>;
 type ChannelReceiver = mpsc::UnboundedReceiver<String>;
 
@@ -20,20 +23,27 @@ pub struct ClientSession {
     send_tx: ChannelSender,
     listen_task: JoinHandle<()>,
     send_task: JoinHandle<()>,
+    /// The local player associated with the client
     session_player: Player,
+    /// Last ping time used for initiating timeout when server is unavailable
     last_ping: std::time::Instant,
 }
 
 pub type ClientSessionResult = Result<ClientSession, Box<dyn Error + Send + Sync>>;
 
 impl ClientSession {
+    /// Bind socket, initiate handshake procedure to server and setup messaging channels.
+    /// Connection and handshake are retried until timeout.
     pub async fn new(server_address: String) -> ClientSessionResult {
         match tokio::time::timeout(globals::CONNECTION_TIMEOUT_SEC, async {
+            // Socket bind
             let client_socket = UdpSocket::bind("0.0.0.0:0").await?;
             let client_socket = Arc::new(client_socket);
 
+            // Server connect
             let session_player = join_server(&client_socket, &server_address).await?;
 
+            // Message handlers
             let (listen_tx, listen_rx) = mpsc::unbounded_channel();
             let (send_tx, send_rx) = mpsc::unbounded_channel();
             let listen_task = tokio::spawn(listen_handler(client_socket.clone(), listen_tx));
@@ -71,6 +81,7 @@ impl ClientSession {
     pub fn receive_server_response(&mut self) -> Result<String, TryRecvError> {
         match self.listen_rx.try_recv() {
             Ok(response) => {
+                // Update last ping
                 if let Ok(Message::Ping) = Message::deserialize(&response) {
                     self.last_ping = std::time::Instant::now();
                 }
@@ -81,12 +92,14 @@ impl ClientSession {
     }
 
     pub fn send_pos(&self, player: &Player) {
+        // TODO: Avoid position self-reporting
         let _ = self
             .send_tx
             .send(Message::Position(player.id, player.pos).serialize());
     }
 
     pub fn is_server_alive(&self) -> bool {
+        // There's no need for separate timeout countdown timer
         self.last_ping.elapsed() < globals::CONNECTION_TIMEOUT_SEC
     }
 
@@ -111,11 +124,13 @@ async fn join_server(
     let handshake_msg = Message::Handshake.serialize();
     // Loop abort happens on timeout in ClientSession::new()
     loop {
+        // Send handshake
         client_socket
             .send_to(handshake_msg.as_bytes(), server_address)
             .await?;
         message::trace(format!("Sent: {handshake_msg}"));
 
+        // Wait for ACK
         match receive_with_retry_timeout(client_socket).await {
             Ok(response) => {
                 if let Ok(Message::Ack(new_id, new_color)) = Message::deserialize(&response) {
@@ -135,6 +150,7 @@ async fn receive_with_retry_timeout(
 ) -> Result<String, Box<dyn Error + Send + Sync>> {
     let retry_timeout = std::time::Duration::from_millis(300);
     let mut buf = [0u8; 32];
+    // TODO: Consider non-blocking UDP I/O
     match tokio::time::timeout(retry_timeout, socket.recv_from(&mut buf)).await {
         Ok(result) => {
             let (len, _) = result?;
@@ -150,6 +166,7 @@ async fn receive_with_retry_timeout(
 async fn listen_handler(socket: Arc<UdpSocket>, listen_tx: ChannelSender) {
     let mut buf = [0u8; 1024];
     loop {
+        // TODO: Consider non-blocking UDP I/O
         match socket.recv_from(&mut buf).await {
             Ok((len, _)) => {
                 if let Ok(msg) = std::str::from_utf8(&buf[..len]) {

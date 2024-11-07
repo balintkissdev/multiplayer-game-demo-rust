@@ -8,6 +8,7 @@ use winit::{event::WindowEvent, event_loop::ActiveEventLoop};
 
 use crate::{fsm, globals};
 
+/// GUI layer for all dialog boxes and the gameplay log output window.
 pub struct Gui {
     egui_glow: EguiGlow,
     log_messages: String,
@@ -37,10 +38,12 @@ impl Gui {
         }
     }
 
+    /// Forward native window events like input to egui.
     pub fn handle_events(&mut self, window: &winit::window::Window, event: &WindowEvent) {
         let _ = self.egui_glow.on_window_event(&window, &event);
     }
 
+    /// Execute UI code and populate batch before draw call
     pub fn prepare_frame(
         &mut self,
         window: &winit::window::Window,
@@ -48,6 +51,7 @@ impl Gui {
     ) {
         self.egui_glow
             .run(&window, |ctx| match state_machine.peek() {
+                // Starter connection menu
                 Some(fsm::State::Menu) | Some(fsm::State::Connecting { .. }) => show_menu(
                     ctx,
                     state_machine,
@@ -56,7 +60,9 @@ impl Gui {
                     &mut self.status_text,
                     &mut self.status_color,
                 ),
+                // Gameplay state
                 Some(fsm::State::Playing) => show_log(ctx, &self.log_messages),
+                // Disconnect dialog
                 Some(fsm::State::Disconnected) => show_disconnected_dialog(
                     ctx,
                     state_machine,
@@ -64,25 +70,30 @@ impl Gui {
                     &mut self.status_text,
                     &mut self.status_color,
                 ),
+                // Quit confirm dialog
                 Some(fsm::State::QuitDialog) => show_quit_dialog(ctx, state_machine),
                 _ => {}
             });
     }
 
+    /// Issue batched draw call
     pub fn draw(&mut self, window: &winit::window::Window) {
         self.egui_glow.paint(&window);
     }
 
+    /// Redirect message to gameplay log window
     pub fn log(&mut self, msg: String) {
         self.log_messages += &format!("{msg}\n");
     }
 
+    /// Error status on connection menu and Disconnected message dialog
     pub fn set_error_status(&mut self, msg: String) {
         self.status_color = Color32::RED;
         self.status_text = msg;
     }
 }
 
+/// Starter connection menu
 fn show_menu(
     ctx: &egui::Context,
     state_machine: &mut fsm::StateMachine,
@@ -102,20 +113,23 @@ fn show_menu(
                 .num_columns(2)
                 .spacing([10.0, 10.0])
                 .show(ui, |ui| {
+                    // Server address textbox
                     ui.label("Server address:");
                     ui.add(TextEdit::singleline(server_hostname).desired_width(150.0));
                     ui.end_row();
 
+                    // Server port number textbox
                     ui.label("Port:");
                     ui.add(TextEdit::singleline(server_port).desired_width(150.0));
                     ui.end_row();
 
+                    // Disable "Connect" button while client is trying to connect
                     let connect_buttons_enabled =
                         !matches!(state_machine.peek(), Some(fsm::State::Connecting { .. }));
+
+                    // "Create server" button
                     let create_button =
                         ui.add_enabled(connect_buttons_enabled, Button::new("Create server"));
-                    let join_button =
-                        ui.add_enabled(connect_buttons_enabled, Button::new("Join server"));
                     if create_button.clicked() {
                         match verify_address_format(server_hostname, server_port) {
                             Ok(_) => {
@@ -132,6 +146,10 @@ fn show_menu(
                             }
                         }
                     }
+
+                    // "Join server" button
+                    let join_button =
+                        ui.add_enabled(connect_buttons_enabled, Button::new("Join server"));
                     if join_button.clicked() {
                         match verify_address_format(server_hostname, server_port) {
                             Ok(_) => {
@@ -148,9 +166,12 @@ fn show_menu(
                             }
                         }
                     }
+
+                    // Status label
                     ui.colored_label(*status_color, status_text);
                     ui.end_row();
 
+                    // "Quit" button
                     if ui.button("Quit").clicked() {
                         state_machine.push(fsm::State::QuitDialog);
                     }

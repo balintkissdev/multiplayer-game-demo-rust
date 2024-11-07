@@ -6,12 +6,26 @@ use crate::{Player, PlayerID};
 
 #[derive(PartialEq)]
 pub enum Message {
+    /// Periodic ping message for server healthcheck
+    // TODO: Extend for client disconnect check
     Ping,
+
+    /// Initial handshake by client on join. Retried on UDP packet loss until timeout.
     Handshake,
+
+    /// Server response to received handshake
     Ack(PlayerID, Vector3<f32>),
+
+    /// Server response notifying all players still remaining on server about player exit so they
+    /// can update their state.
     Leave(PlayerID),
+
+    /// Server's world replication of a single player position
+    /// TODO: Currently sent one-by-one, make it a bulk send instead
     Replicate(Player),
-    // TODO: Avoid clients self-reporting their exact own position and opt for sending input state
+
+    /// Player's position response after movement change.
+    // TODO: Avoid clients self-reporting their exact own position and opt for sending input action
     // instead
     Position(PlayerID, Vector2<f32>),
 }

@@ -1,6 +1,7 @@
+/// Parameter used for first connection establishment
 #[derive(Clone, Copy)]
 pub enum SessionMode {
-    CreateServer,
+    CreateServer,   /// Peer-hosted, hybrid server-client session
     ConnectAsClientOnly,
 }
 
@@ -21,7 +22,7 @@ pub enum State {
 /// state like a stack. Basically just a thin wrapper around a Vec, which is recommended for stack
 /// data structures by https://doc.rust-lang.org/std/collections/index.html#use-a-vec-when
 ///
-/// There are third-party crates like rust_fsm, but not necessary to include too much crates.
+/// There are third-party crates like rust_fsm, but I prefer not to include too many crates.
 pub struct StateMachine {
     state_stack: Vec<State>,
 }
